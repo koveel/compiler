@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="parse">
+      <UniqueIdentifier>{80DD2010-ECF1-48C1-B573-EC20214745F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{169C8510-82B0-ADC1-4B32-5121B705AAF2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Core.h" />
+    <ClInclude Include="src\Logging.h" />
+    <ClInclude Include="src\Type.h" />
+    <ClInclude Include="src\parse\Lexer.h">
+      <Filter>parse</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parse\Parser.h">
+      <Filter>parse</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parse\Tree.h">
+      <Filter>parse</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pch.h" />
+    <ClInclude Include="src\utils\ExpressionAllocator.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\File.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\Memory.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\Queue.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\Set.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\SmallVector.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\Span.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Logging.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Printer.cpp" />
+    <ClCompile Include="src\parse\Lexer.cpp">
+      <Filter>parse</Filter>
+    </ClCompile>
+    <ClCompile Include="src\parse\Parser.cpp">
+      <Filter>parse</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp" />
+    <ClCompile Include="src\utils\File.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
