@@ -12,7 +12,7 @@ static bool at_end()
 static void advance(int length)
 {
 	lexer->current += length;
-	lexer->column += length;
+	lexer->column  += length;
 }
 
 static char peek()
@@ -29,7 +29,7 @@ static void skip_comment()
 {
 	if (at_comment())
 	{
-		while (*lexer->current != '\n' && *lexer->current != '\0')
+		while (*lexer->current != '\n' && *lexer->current)
 			advance(1);
 	}
 }
@@ -117,7 +117,7 @@ static Token make_string()
 	do
 	{
 		char c = peek();
-		if (c == '\n' || c == '\0')
+		if (!c || c == '\n')
 		{
 			advance(-1);
 			ASSERT(false && "unterminated string");
@@ -150,7 +150,7 @@ static Token make_token(TokenType type, uint32_t length)
 }
 
 template<size_t N>
-static bool check_keyword(const char(&keyword)[N])
+static bool match(const char(&keyword)[N])
 {
 	for (size_t i = 0; i < N - 1; i++) {
 		if (lexer->current[i] != keyword[i])
@@ -160,318 +160,243 @@ static bool check_keyword(const char(&keyword)[N])
 	return true;
 }
 
-static void process_token(Token* token)
+static Token process_token()
 {
 	switch (*lexer->current)
 	{
-	case '(': *token = make_token(TokenType::LeftParen, 1);  return;
-	case ')': *token = make_token(TokenType::RightParen, 1); return;
+	case '(': return make_token(TokenType::LeftParen, 1);
+	case ')': return make_token(TokenType::RightParen, 1);
 
-	case '{': *token = make_token(TokenType::LeftCurlyBracket, 1);  return;
-	case '}': *token = make_token(TokenType::RightCurlyBracket, 1); return;
+	case '{': return make_token(TokenType::LeftCurlyBracket, 1);
+	case '}': return make_token(TokenType::RightCurlyBracket, 1);
 
-	case '[': *token = make_token(TokenType::LeftSquareBracket, 1);  return;
-	case ']': *token = make_token(TokenType::RightSquareBracket, 1); return;
+	case '[': return make_token(TokenType::LeftSquareBracket, 1);
+	case ']': return make_token(TokenType::RightSquareBracket, 1);
 
 	case '<':
 	{
 		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::LessEqual, 2);
-			return;
+			return make_token(TokenType::LessEqual, 2);
 		}
 		if (lexer->current[1] == '<') {
 			if (lexer->current[2] == '=')
-				*token = make_token(TokenType::DoubleLessEqual, 3);
+				return make_token(TokenType::DoubleLessEqual, 3);
 			else
-				*token = make_token(TokenType::DoubleLess, 2);
-
-			return;
+				return make_token(TokenType::DoubleLess, 2);
 		}
 
-		*token = make_token(TokenType::Less, 1);
-		return;
+		return make_token(TokenType::Less, 1);
 	}
 	case '>':
 	{
 		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::GreaterEqual, 2); 
-			return;
+			return make_token(TokenType::GreaterEqual, 2); 
 		}
 		if (lexer->current[1] == '>') {
 			if (lexer->current[2] == '=')
-				*token = make_token(TokenType::DoubleGreaterEqual, 3);
-			else
-				*token = make_token(TokenType::DoubleGreater, 2);
+				return make_token(TokenType::DoubleGreaterEqual, 3);
 
-			return;
+			return make_token(TokenType::DoubleGreater, 2);
 		}
 
-		*token = make_token(TokenType::Greater, 1);
-		return;
+		return make_token(TokenType::Greater, 1);
 	}
 	case '^':
 	{
 		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::CaretEqual, 2);
-			return;
+			return make_token(TokenType::CaretEqual, 2);
 		}
 
-		*token = make_token(TokenType::Caret, 1);
-		return;
+		return make_token(TokenType::Caret, 1);
 	}
-	case '~':  *token = make_token(TokenType::Tilde, 1); return;
+	case '~':  return make_token(TokenType::Tilde, 1);
 	case '+':
 	{
 		if (lexer->current[1] == '+')
-			*token = make_token(TokenType::Increment, 2);
+			return make_token(TokenType::Increment, 2);
 		else if (lexer->current[1] == '=')
-			*token = make_token(TokenType::PlusEqual, 2);
-		else
-			*token = make_token(TokenType::Plus, 1);
+			return make_token(TokenType::PlusEqual, 2);
 
-		return;
+		return make_token(TokenType::Plus, 1);
 	}
 	case '-':
 	{
 		switch (lexer->current[1])
 		{
-		case '-': *token = make_token(TokenType::Decrement, 2);  return;
-		case '=': *token = make_token(TokenType::HyphenEqual, 2);  return;
-		case '>': *token = make_token(TokenType::RightArrow, 2); return;
-		default:  *token = make_token(TokenType::Hyphen, 1); return;
+		case '-': return make_token(TokenType::Decrement, 2);
+		case '=': return make_token(TokenType::HyphenEqual, 2);
+		case '>': return make_token(TokenType::RightArrow, 2);
+		default:  return make_token(TokenType::Hyphen, 1);
 		}
 	}
 	case '*':
 	{
-		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::AsteriskEqual, 2);
-			return;
-		}
+		if (lexer->current[1] == '=')
+			return make_token(TokenType::AsteriskEqual, 2);
 
-		*token = make_token(TokenType::Asterisk, 1); 
-		return;
+		return make_token(TokenType::Asterisk, 1); 
 	}
 	case '/':
 	{
 		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::ForwardSlashEqual, 2); 
-			return;
+			return make_token(TokenType::ForwardSlashEqual, 2); 
 		}
 
-		*token = make_token(TokenType::Slash, 1); 
-		return;
+		return make_token(TokenType::Slash, 1); 
 	}
-	case '\\': *token = make_token(TokenType::Backslash, 1); return;
+	case '\\': return make_token(TokenType::Backslash, 1);
 	case '=':
 	{
-		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::DoubleEqual, 2); 
-			return;
-		}
+		if (lexer->current[1] == '=')
+			return make_token(TokenType::DoubleEqual, 2); 
 
-		*token = make_token(TokenType::Equal, 1); 
-		return;
+		return make_token(TokenType::Equal, 1); 
 	}
 	case '!':
 	{
-		if (lexer->current[1] == '=') {
-			*token = make_token(TokenType::ExclamationEqual, 2); 
-			return;
-		}
+		if (lexer->current[1] == '=')
+			return make_token(TokenType::ExclamationEqual, 2); 
 
-		*token = make_token(TokenType::Exclamation, 1);
-		return;
+		return make_token(TokenType::Exclamation, 1);
 	}
 	case ':':
 	{
 		if (lexer->current[1] == ':')
-			*token = make_token(TokenType::DoubleColon, 2);
+			return make_token(TokenType::DoubleColon, 2);
 		else if (lexer->current[1] == '=')
-			*token = make_token(TokenType::WalrusTeeth, 2);
-		else
-			*token = make_token(TokenType::Colon, 1);
-
-		return;
+			return make_token(TokenType::WalrusTeeth, 2);
+		
+		return make_token(TokenType::Colon, 1);
 	}
 	case ';':
 	{
-		*token = make_token(TokenType::Semicolon, 1);
-		return;
+		return make_token(TokenType::Semicolon, 1);
 	}
 	case '.':
 	{
 		if (lexer->current[1] == '.') {
 			if (lexer->current[2] == '.')
-				*token = make_token(TokenType::Ellipsis, 3);
+				return make_token(TokenType::Ellipsis, 3);
 			else
-				*token = make_token(TokenType::Expansion, 2);
-		} 
-		else *token = make_token(TokenType::Dot, 1); 
+				return make_token(TokenType::Expansion, 2);
+		}
 
-		return;
+		return make_token(TokenType::Dot, 1); 
 	}
-	case ',': *token = make_token(TokenType::Comma, 1); return;
-	case '?': *token = make_token(TokenType::QuestionMark, 1); return;
+	case ',': return make_token(TokenType::Comma, 1);
+	case '?': return make_token(TokenType::QuestionMark, 1);
 	case '&': 
 	{
 		if (lexer->current[1] == '&')
-		{
-			*token = make_token(TokenType::DoubleAmpersand, 2);
-		}
-		else
-		{
-			if (lexer->current[2] == '=')
-				*token = make_token(TokenType::AmpersandEqual, 2);
-			else
-				*token = make_token(TokenType::Ampersand, 1);
-
-			return;
-		}
-
-		return;
+			return make_token(TokenType::DoubleAmpersand, 2);
+		else if (lexer->current[1] == '=')
+			return make_token(TokenType::AmpersandEqual, 2);
+		
+		return make_token(TokenType::Ampersand, 1);
 	}
 	case '|':
 	{
 		if (lexer->current[1] == '|')
-			*token = make_token(TokenType::DoublePipe, 2);
+			return make_token(TokenType::DoublePipe, 2);
 		else if (lexer->current[1] == '=')
-			*token = make_token(TokenType::PipeEqual, 2);
-		else
-			*token = make_token(TokenType::Pipe, 1);
+			return make_token(TokenType::PipeEqual, 2);
 
-		return;
+		return make_token(TokenType::Pipe, 1);
 	}
 	case '%':
 	{
 		if (lexer->current[1] == '=')
-			*token = make_token(TokenType::PercentEqual, 2);
-		else
-			*token = make_token(TokenType::Percent, 1);
+			return make_token(TokenType::PercentEqual, 2);
 
-		return;
+		return make_token(TokenType::Percent, 1);
 	}
-	case '@': *token = make_token(TokenType::At, 1); return;
-	case '#': *token = make_token(TokenType::Hashtag, 1); return;
+	case '@': return make_token(TokenType::At, 1);
+	case '#': return make_token(TokenType::Hashtag, 1);
 
-	case '\"': *token = make_string(); return;
+	case '\"': return make_string();
 
 	// Keywords
 	case 'b':
 	{
-		if (check_keyword("break")) {
-			*token = make_token(TokenType::Break, 5);
-			return;
-		}
+		if (match("break"))
+			return make_token(TokenType::Break, 5);
 
 		break;
 	}
 	case 'c':
 	{
-		if (check_keyword("continue")) {
-			*token = make_token(TokenType::Continue, 8);
-			return;
-		}
+		if (match("continue"))
+			return make_token(TokenType::Continue, 8);
 
 		break;
 	}
 	case 'e':
 	{
-		if (check_keyword("else")) {
-			*token = make_token(TokenType::Else, 4);
-			return;
-		}
-		if (check_keyword("enum")) {
-			*token = make_token(TokenType::Enum, 4);
-			return;
-		}
+		if (match("else"))
+			return make_token(TokenType::Else, 4);
+		else if (match("enum"))
+			return make_token(TokenType::Enum, 4);
 
 		break;
 	}
 	case 'f':
 	{
-		if (check_keyword("false")) {
-			*token = make_token(TokenType::False, 5);
-			return;
-		}
-		if (check_keyword("for")) {
-			*token = make_token(TokenType::For, 3);
-			return;
-		}
+		if (match("false"))
+			return make_token(TokenType::False, 5);
+		else if (match("for"))
+			return make_token(TokenType::For, 3);
 
 		break;
 	}
 	case 'i':
 	{
-		if (check_keyword("if")) {
-			*token = make_token(TokenType::If, 2);
-			return;
-		}
+		if (match("if"))
+			return make_token(TokenType::If, 2);
 
 		break;
 	}
 	case 'n':
 	{
-		if (check_keyword("null")) {
-			*token = make_token(TokenType::Null, 4);
-			return;
-		}
+		if (match("null"))
+			return make_token(TokenType::Null, 4);
 
 		break;
 	}
 	case 'r':
 	{
-		if (check_keyword("return")) {
-			*token = make_token(TokenType::Return, 6);
-			return;
-		}
+		if (match("return"))
+			return make_token(TokenType::Return, 6);
 
 		break;
 	}
 	case 's':
 	{
-		if (check_keyword("struct")) {
-			*token = make_token(TokenType::Struct, 6);
-			return;
-		}
+		if (match("struct"))
+			return make_token(TokenType::Struct, 6);
 
 		break;
 	}
 	case 't':
 	{
-		if (check_keyword("true")) {
-			*token = make_token(TokenType::True, 4);
-			return;
-		}
-		if (check_keyword("typeof")) {
-			*token = make_token(TokenType::Typeof, 6);
-			return;
-		}
+		if (match("true"))
+			return make_token(TokenType::True, 4);
+		if (match("typeof"))
+			return make_token(TokenType::Typeof, 6);
+
 		break;
 	}
 	}
 
-	// Handle end token
 	if (at_end())
-	{
-		*token = make_token(TokenType::Eof, 0);
-		return;
-	}
+		return make_token(TokenType::Eof, 0);
 
-	// Handle numbers and identifiers
+	// numbers and identifiers
 	if (is_alpha(peek()))
-	{
-		*token = make_identifier();
-		return;
-	}
+		return make_identifier();
 	else if (is_digit(peek()))
-	{
-		*token = make_number();
-		return;
-	}
+		return make_number();
 
-	// Unknown token
 	advance(1);
-
 	ASSERT(false && "unexpected token");
 }
 
@@ -483,18 +408,18 @@ Token Lexer::next()
 	tokenStart = current;
 	previousToken = currentToken;
 
-	process_token(&currentToken);
+	currentToken = process_token();
 	const char* oldStart = tokenStart;
 
 	// We don't want the lexer to *actually* advance when we process the next token
 	const char* oldCurrent = current;
-	int oldLine = line;
+	int oldLine   = line;
 	int oldColumn = column;
 	tokenStart = current;
 	
 	skip_whitespace();
 
-	process_token(&nextToken);
+	nextToken = process_token();
 
 	current = oldCurrent;
 	tokenStart = oldStart;

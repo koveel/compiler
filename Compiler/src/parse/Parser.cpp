@@ -193,11 +193,7 @@ template<typename T>
 static T* make_expression()
 {
 	auto& lexer = parser->lexer;
-
-	const char* errorLocation = lexer.previousToken.view.data() + lexer.previousToken.view.length();
-	uint32_t rangeOffset = errorLocation - lexer.file.data;
-
-	T* expression = parser->allocator.allocate<T>(T::get_kind(), lexer.line, rangeOffset);
+	T* expression = parser->allocator.allocate<T>(T::get_kind(), lexer.currentToken);
 
 	return expression;
 }
@@ -210,7 +206,7 @@ static Expression* parse_identifier();
 static ReturnStatement* parse_return();
 static CallExpression*  parse_call(Expression* operand);
 static SubscriptExpression* parse_subscript(Expression* operand);
-static CompoundExpression*  parse_compound(TokenType statementDelimiter = TokenType::Semicolon);
+static BlockExpression*  parse_compound(TokenType statementDelimiter = TokenType::Semicolon);
 
 static std::vector<Expression*> parse_tight_delimited_expression_list(TokenType grouping); // won't permit trailing comma
 
@@ -241,12 +237,6 @@ static Expression* parse_infix(Expression* left, Operation operation, int priori
 {
 	switch (operation.type)
 	{
-	case OperationType::Call: return parse_call(left);
-	case OperationType::Subscript: return parse_subscript(left);
-	case OperationType::Expansion: return parse_expansion(left);
-	case OperationType::PostfixIncrement: return make_postfix(left, UnaryType::PostfixIncrement);
-	case OperationType::PostfixDecrement: return make_postfix(left, UnaryType::PostfixDecrement);
-		return parse_expansion(left);
 	default: {
 		advance(); // through infix operator
 
@@ -259,6 +249,13 @@ static Expression* parse_infix(Expression* left, Operation operation, int priori
 
 		return binary;
 	}
+	//	postfix bruh
+	case OperationType::Call: return parse_call(left);
+	case OperationType::Subscript: return parse_subscript(left);
+	case OperationType::Expansion: return parse_expansion(left);
+	case OperationType::PostfixIncrement: return make_postfix(left, UnaryType::PostfixIncrement);
+	case OperationType::PostfixDecrement: return make_postfix(left, UnaryType::PostfixDecrement);
+		return parse_expansion(left);
 	}
 }
 
@@ -296,15 +293,10 @@ static Expression* parse_line(TokenType expected_delim = TokenType::Semicolon)
 	int  priority = -1;
 	bool expect_end_token = true;
 
-	//Token token = parser->current;
-	//if (token.type == TokenType::For || token.type == TokenType::If) {
-	//	priority = 100;
-	//}
-
 	auto expr = parse_expression(priority);
 	switch (expr->kind)
 	{
-	case ExpressionType::Compound:
+	case ExpressionType::Block:
 	case ExpressionType::StructDefinition:
 		expect_end_token = false;
 		break;
@@ -463,6 +455,9 @@ static Expression* parse_primary()
 		advance();
 		return expr;
 	}
+	case TokenType::Eof:
+		LOG("unexpected end of file");
+		ASSERT(false); break;
 	}
 
 	advance();
@@ -624,6 +619,7 @@ static Expression* parse_constant(std::string_view name, std::vector<Expression*
 
 	auto def = make_expression<ConstantDefinitionExpression>();
 	def->name = name;
+	def->valueOrTypeExpr = value_or_type;
 	def->templateParameters = std::move(templateParameters);
 
 	return def;
@@ -711,12 +707,12 @@ static Expression* parse_identifier()
 	return id;
 }
 
-static CompoundExpression* parse_compound(TokenType statementDelimiter)
+static BlockExpression* parse_compound(TokenType statementDelimiter)
 {
 	expect(TokenType::LeftCurlyBracket, "expect '{{' to begin compound statement");
 
 	Token* token = &parser->current;
-	auto compound = make_expression<CompoundExpression>();
+	auto compound = make_expression<BlockExpression>();
 
 	// Parse the statements in the block
 	while (token->type != TokenType::RightCurlyBracket && token->type != TokenType::Eof)
@@ -737,7 +733,7 @@ static CompoundExpression* parse_compound(TokenType statementDelimiter)
 	return compound;
 }
 
-static void parse_module(CompoundExpression* compound)
+static void parse_module(BlockExpression* compound)
 {
 	Token* token = &parser->current;
 	while (token->type != TokenType::Eof)
@@ -788,10 +784,10 @@ ParseResult Parser::parse()
 	parser = this;
 	parser->result = &result;
 
-	result.tree = make_expression<CompoundExpression>();
+	result.tree = make_expression<BlockExpression>();
 
 	advance();
-	parse_module(static_cast<CompoundExpression*>(result.tree));
+	parse_module(static_cast<BlockExpression*>(result.tree));
 
 	return result;
 }

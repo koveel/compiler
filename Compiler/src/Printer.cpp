@@ -58,9 +58,9 @@ static void print_expression(Expression* expression, uint32_t indent)
 	std::cout << std::format("{: >{}}", "", indent);
 	switch (expression->kind)
 	{
-		case ExpressionType::Compound:
+		case ExpressionType::Block:
 		{
-			auto compound = static_cast<CompoundExpression*>(expression);
+			auto compound = static_cast<BlockExpression*>(expression);
 
 			LOG("[Compound]:");
 			for (auto child : compound->children)
@@ -120,7 +120,7 @@ static void print_expression(Expression* expression, uint32_t indent)
 		case ExpressionType::FunctionDefinition:
 		{
 			auto def = static_cast<FunctionDefinitionExpression*>(expression);
-			LOG("[FuncDef]: {}", def->name);
+			LOG("[Func]: {}", def->name);
 			//if (def->returnType)
 			//	print_expression(def->returnType, indent + indentation);
 			//for (auto param : def->functionParameters)
@@ -133,9 +133,18 @@ static void print_expression(Expression* expression, uint32_t indent)
 		case ExpressionType::StructDefinition:
 		{
 			auto def = static_cast<StructDefinitionExpression*>(expression);
-			LOG("[StructDef]: {}", def->name);
+			LOG("[Struct]: {}", def->name);
 			for (auto child : def->members)
 				print_expression(child, indent + indentation);
+
+			break;
+		}
+		case ExpressionType::ConstantDefinition:
+		{
+			auto def = static_cast<ConstantDefinitionExpression*>(expression);
+			LOG("[Constant]: {}", def->name);
+			if (def->valueOrTypeExpr)
+				print_expression(def->valueOrTypeExpr, indent + indentation);
 
 			break;
 		}

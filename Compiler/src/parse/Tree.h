@@ -6,15 +6,14 @@
 enum class ExpressionType : uint8_t
 {
 	None = 0,
-	Compound, Identifier,
-	Primary, String,
+	Block,
+	Return,
+	Identifier, Primary, String,
 	Unary, Binary,
 	Type, FunctionType,
-	ParenthesizedGrouping,
+	CommaDelimited, ParenthesizedGrouping,
 	VariableDefinition, FunctionDefinition, StructDefinition, ConstantDefinition,
-	Subscript, Call,
-	Return,
-	Expansion,
+	Call, Subscript, Expansion,
 
 	Typeof,
 };
@@ -22,15 +21,36 @@ enum class ExpressionType : uint8_t
 struct Expression
 {
 	ExpressionType kind  = ExpressionType::None;
-	uint32_t sourceLine  = 0;
-	uint32_t sourceStart = 0;
+	Token token;
 	Type* type = nullptr;
 
-	Expression(ExpressionType kind, uint32_t line, uint32_t start)
-		: kind(kind), sourceLine(line), sourceStart(start)
-	{
-	}
+	Expression(ExpressionType kind, const Token& token) : kind(kind), token(token) {}
 	virtual ~Expression() = default;
+};
+
+struct BlockExpression : public Expression {
+	std::vector<Expression*> children;
+
+	using Expression::Expression;
+
+	static constexpr auto get_kind() { return ExpressionType::Block; }
+};
+
+struct CommaDelimitedExpr: public Expression {
+	std::vector<Expression*> children;
+
+	using Expression::Expression;
+
+	static constexpr auto get_kind() { return ExpressionType::CommaDelimited; }
+};
+
+struct ParenthesizedGroupingExpr : public Expression // not necessary but assists in disambiguating constant and function definitions
+{
+	Expression* inner = nullptr;
+
+	using Expression::Expression;
+
+	static constexpr auto get_kind() { return ExpressionType::ParenthesizedGrouping; }
 };
 
 struct IdentifierExpression : public Expression {
@@ -39,22 +59,6 @@ struct IdentifierExpression : public Expression {
 	using Expression::Expression;
 
 	static constexpr auto get_kind() { return ExpressionType::Identifier; }
-};
-
-struct StringExpression : public Expression { // i do wat i feel
-	std::string_view value;
-
-	using Expression::Expression;
-
-	static constexpr auto get_kind() { return ExpressionType::String; }
-};
-
-struct CompoundExpression : public Expression {
-	std::vector<Expression*> children;
-
-	using Expression::Expression;
-
-	static constexpr auto get_kind() { return ExpressionType::Compound; }
 };
 
 struct PrimaryExpression : public Expression
@@ -73,6 +77,14 @@ struct PrimaryExpression : public Expression
 	using Expression::Expression;
 
 	static constexpr auto get_kind() { return ExpressionType::Primary; }
+};
+
+struct StringExpression : public Expression { // i do wat i feel
+	std::string_view value;
+
+	using Expression::Expression;
+
+	static constexpr auto get_kind() { return ExpressionType::String; }
 };
 
 enum class UnaryType : uint8_t
@@ -137,6 +149,7 @@ struct BinaryExpression : public Expression
 	static constexpr auto get_kind() { return ExpressionType::Binary; }
 };
 
+// any application of postfix () - ambiguous with function calls in constant context
 struct CallExpression : public Expression
 {
 	Expression* operand = nullptr;
@@ -165,27 +178,6 @@ struct StructDefinitionExpression : public Expression
 	using Expression::Expression;
 
 	static constexpr auto get_kind() { return ExpressionType::StructDefinition; }
-};
-
-struct AmbiguousDefinitionExpr : public Expression
-{
-	std::string_view name;
-	std::vector<Expression*> templateParameters;
-	
-	struct {
-		Expression* returnType = nullptr;
-		std::vector<Expression*> parameters;
-		std::vector<Expression*> body;
-	} function;
-};
-
-struct ParenthesizedGroupingExpr : public Expression // not necessary but assists in disambiguating constant and function definitions
-{
-	Expression* inner = nullptr;
-
-	using Expression::Expression;
-
-	static constexpr auto get_kind() { return ExpressionType::ParenthesizedGrouping; }
 };
 
 struct FunctionDefinitionExpression : public Expression

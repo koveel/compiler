@@ -113,6 +113,7 @@
     <ClInclude Include="src\utils\File.h" />
     <ClInclude Include="src\utils\Memory.h" />
     <ClInclude Include="src\utils\Queue.h" />
+    <ClInclude Include="src\utils\raw_list.h" />
     <ClInclude Include="src\utils\Set.h" />
     <ClInclude Include="src\utils\SmallVector.h" />
     <ClInclude Include="src\utils\Span.h" />
